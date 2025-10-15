@@ -1,6 +1,3 @@
-# HEVO_ASSIGMENT1
-
-
 # 🚀 Hevo Data Assessment – End-to-End Data Pipeline (PostgreSQL → Hevo → Snowflake)
 
 This project demonstrates the setup of a **complete data pipeline** using **PostgreSQL (Neon)**, **Hevo Data**, and **Snowflake**.  
@@ -44,44 +41,46 @@ The goal of this project was to:
 - Verified installation using:
   ```bash
   docker version
-✅ Command worked successfully.
+  ```
+  ✅ Command worked successfully.
 
-2️⃣ Issue Encountered
-Launching the container threw repeated 500 API errors.
+### 2️⃣ Issue Encountered
+- Launching the container threw repeated **500 API errors**.
 
-3️⃣ Decision
-Switched to Neon.tech, a managed cloud PostgreSQL service with:
+### 3️⃣ Decision
+- Switched to **Neon.tech**, a managed cloud PostgreSQL service with:
+  - Free tier  
+  - GUI  
+  - Logical replication support
 
-Free tier
+---
 
-GUI
+## 🧱 Step 3: PostgreSQL Setup in Neon
 
-Logical replication support
+- Signed up at [Neon Console](https://console.neon.tech).
+- Created project and database **`neondb`**.
+- Default role: `neondb_owner`.
 
-🧱 Step 3: PostgreSQL Setup in Neon
-Signed up at Neon Console.
+✅ *Connection successful.*
 
-Created project and database neondb.
+### Connection via pgAdmin
+Created a new server named **neondb** using these credentials:
 
-Default role: neondb_owner.
+| Parameter | Value |
+|------------|--------|
+| Hostname | `ep-delicate-math-adkswflv-pooler.c-2.us-east-1.aws.neon.tech` |
+| Database | `neondb` |
+| User | `neondb_owner` |
+| Password | `********` |
 
-✅ Connection successful.
+✅ *pgAdmin connected successfully.*
 
-Connection via pgAdmin
-Created a new server named neondb using these credentials:
+---
 
-Parameter	Value
-Hostname	ep-delicate-math-adkswflv-pooler.c-2.us-east-1.aws.neon.tech
-Database	neondb
-User	neondb_owner
-Password	********
+## 🧮 Step 4: Table Creation and Data Import under pgAdmin
 
-✅ pgAdmin connected successfully.
-
-🧮 Step 4: Table Creation and Data Import under pgAdmin
-1️⃣ Table Creation
-sql
-Copy code
+### 1️⃣ Table Creation
+```sql
 CREATE TABLE customers (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(50),
@@ -102,102 +101,108 @@ CREATE TABLE feedback (
     rating INT,
     comment TEXT
 );
-2️⃣ Data Import
-Downloaded CSV files from:
-📂 Hevo Assessment CSV Repo
+```
 
-customers.csv
+### 2️⃣ Data Import
+Downloaded CSV files from:  
+📂 [Hevo Assessment CSV Repo](https://github.com/muskan-kesharwani-hevo/hevo-assessment-csv)
 
-orders.csv
+- `customers.csv`
+- `orders.csv`
+- `feedback.csv`
 
-feedback.csv
+Imported using pgAdmin’s **Import/Export Data** tool.
 
-Imported using pgAdmin’s Import/Export Data tool.
+---
 
-⚠️ Issue 1: Invalid JSON Format
-Error:
-invalid input syntax for type json
+### ⚠️ Issue 1: Invalid JSON Format
+**Error:**  
+`invalid input syntax for type json`
 
-Root Cause:
-address column values not enclosed in double quotes.
+**Root Cause:**  
+`address` column values not enclosed in double quotes.
 
-Fix:
-Converted column type from JSON → TEXT
-
-sql
-Copy code
+**Fix:**  
+Converted column type from `JSON` → `TEXT`
+```sql
 ALTER TABLE customers ALTER COLUMN address TYPE TEXT USING address::TEXT;
-✅ Re-imported successfully.
+```
+✅ *Re-imported successfully.*
 
-⚠️ Issue 2: Duplicate Key Violation
-Error:
+---
 
-vbnet
-Copy code
+### ⚠️ Issue 2: Duplicate Key Violation
+**Error:**  
+```
 ERROR: duplicate key value violates unique constraint "feedback_order_id_key"
 DETAIL: Key (order_id)=(1121) already exists.
-Root Cause:
-133 duplicate order_id values in feedback.csv.
+```
 
-Fix using Python (Pandas):
+**Root Cause:**  
+133 duplicate `order_id` values in `feedback.csv`.
 
-python
-Copy code
+**Fix using Python (Pandas):**
+```python
 import pandas as pd
 df = pd.read_csv('feedback.csv')
 df = df.drop_duplicates(subset='order_id', keep='first')
 df.to_csv('feedback_clean.csv', index=False)
-✅ Re-imported feedback_clean.csv successfully.
+```
+✅ *Re-imported `feedback_clean.csv` successfully.*
 
-🔗 Step 5: Connect PostgreSQL to Hevo
-1️⃣ Pipeline Setup
-Source: PostgreSQL (Neon)
+---
 
-Destination: Snowflake
+## 🔗 Step 5: Connect PostgreSQL to Hevo
 
-2️⃣ Connection Configuration
-Parameter	Value
-Host	ep-delicate-math-adkswflv-pooler.c-2.us-east-1.aws.neon.tech
-Database	neondb
-User	neondb_owner
-Password	********
+### 1️⃣ Pipeline Setup
+- Source: PostgreSQL (Neon)
+- Destination: Snowflake
 
-3️⃣ Error Encountered
+### 2️⃣ Connection Configuration
+| Parameter | Value |
+|------------|--------|
+| Host | `ep-delicate-math-adkswflv-pooler.c-2.us-east-1.aws.neon.tech` |
+| Database | `neondb` |
+| User | `neondb_owner` |
+| Password | `********` |
+
+### 3️⃣ Error Encountered
 Hevo error:
+> Unable to use logical replication. wal_level must be set to 'logical'
 
-Unable to use logical replication. wal_level must be set to 'logical'
+### 4️⃣ Fix
+- Logged in to **Neon → Settings → Enable Logical Replication**
+- Verified using:
+  ```sql
+  SHOW wal_level;
+  ```
+  Output: `logical`
 
-4️⃣ Fix
-Logged in to Neon → Settings → Enable Logical Replication
+✅ *Reconnected successfully.*
 
-Verified using:
+---
 
-sql
-Copy code
-SHOW wal_level;
-Output: logical
+## ⚙️ Step 6: Hevo Pipeline Configuration
 
-✅ Reconnected successfully.
+| Setting | Value |
+|----------|--------|
+| Destination Table Prefix | *(Blank)* |
+| Auto Mapping | Enabled |
+| Ingestion Schedule | Every 30 minutes |
 
-⚙️ Step 6: Hevo Pipeline Configuration
-Setting	Value
-Destination Table Prefix	(Blank)
-Auto Mapping	Enabled
-Ingestion Schedule	Every 30 minutes
+✅ *Tables from PostgreSQL successfully appeared in Hevo.*
 
-✅ Tables from PostgreSQL successfully appeared in Hevo.
+---
 
-🧠 Step 7: Data Transformation in Hevo (Python Script)
-Transformation Goals
-Derive username from email in customers
+## 🧠 Step 7: Data Transformation in Hevo (Python Script)
 
-Create new derived table order_events from orders
+### Transformation Goals
+1. Derive **username** from email in `customers`
+2. Create new derived table **order_events** from `orders`
+3. Pass other tables unchanged
 
-Pass other tables unchanged
-
-Python Script
-python
-Copy code
+### Python Script
+```python
 import datetime
 
 def transform(event):
@@ -235,49 +240,64 @@ def transform(event):
 
     # 3️⃣ Pass feedback and other tables
     return event, table_name
-✅ Transformation deployed successfully.
+```
 
-❄️ Step 8: Load and Validate in Snowflake
-Database: PC_HEVODATA_DB
-Schema: PUBLIC
+✅ *Transformation deployed successfully.*
 
-SQL Operations
-sql
-Copy code
+---
+
+## ❄️ Step 8: Load and Validate in Snowflake
+
+**Database:** `PC_HEVODATA_DB`  
+**Schema:** `PUBLIC`
+
+### SQL Operations
+```sql
 ALTER TABLE PC_HEVODATA_DB.PUBLIC.CUSTOMERS
 ADD COLUMN USERNAME VARCHAR;
 
 UPDATE PC_HEVODATA_DB.PUBLIC.CUSTOMERS
 SET USERNAME = SPLIT_PART(EMAIL, '@', 1);
-✅ Validation Queries
-Validation A — Order Events
+```
 
-sql
-Copy code
+---
+
+### ✅ Validation Queries
+
+**Validation A — Order Events**
+```sql
 SELECT EVENT_TYPE, COUNT(*)
 FROM PC_HEVODATA_DB.PUBLIC.ORDER_EVENTS
 GROUP BY EVENT_TYPE;
-Validation B — Username Field
+```
 
-sql
-Copy code
+**Validation B — Username Field**
+```sql
 SELECT EMAIL, USERNAME, FIRST_NAME
 FROM PC_HEVODATA_DB.PUBLIC.CUSTOMERS
 WHERE USERNAME IS NOT NULL
 LIMIT 10;
-✅ All validation checks passed successfully.
+```
 
-💡 Issues Encountered & Design Choices
-Category	Decision / Assumption
-Address Field	Converted JSON → TEXT for simplicity
-Order Status Type	Used VARCHAR instead of ENUM for flexibility
-Duplicate Handling	Removed duplicates at source using Python
-Transformation Type	Used Python for precise control
-Ingestion Frequency	30-minute schedule for steady sync
+✅ *All validation checks passed successfully.*
 
-📁 Repository Structure
-pgsql
-Copy code
+---
+
+## 💡 Issues Encountered & Design Choices
+
+| Category | Decision / Assumption |
+|-----------|------------------------|
+| Address Field | Converted JSON → TEXT for simplicity |
+| Order Status Type | Used VARCHAR instead of ENUM for flexibility |
+| Duplicate Handling | Removed duplicates at source using Python |
+| Transformation Type | Used Python for precise control |
+| Ingestion Frequency | 30-minute schedule for steady sync |
+
+---
+
+## 📁 Repository Structure
+
+```
 📦 hevo-data-assessment
 │
 ├── README.md
@@ -292,18 +312,28 @@ Copy code
 │
 ├── transform/
 │   └── transform_script.py
-🧩 Summary
-✅ Attempted PostgreSQL via Docker (failed due to 500 API error)
-✅ Switched to Neon PostgreSQL (successful)
-✅ Created & populated tables
-✅ Connected PostgreSQL → Hevo with logical replication
-✅ Applied Python transformations
-✅ Synced data to Snowflake
-✅ Verified transformations and data integrity
+```
 
-🏷️ About
-Author: Kashish Pal
-Project: Hevo Data Assessment I
-Technologies: PostgreSQL (Neon), Hevo Data, Snowflake, Python, SQL
+---
 
-📘 This repository demonstrates an end-to-end ELT workflow leveraging cloud-native data engineering tools for modern analytics pipelines.
+## 🧩 Summary
+
+✅ Attempted PostgreSQL via Docker (failed due to 500 API error)  
+✅ Switched to **Neon PostgreSQL** (successful)  
+✅ Created & populated tables  
+✅ Connected **PostgreSQL → Hevo** with logical replication  
+✅ Applied **Python transformations**  
+✅ Synced data to **Snowflake**  
+✅ Verified transformations and data integrity  
+
+---
+
+### 🏷️ About
+
+> **Author:** Kashish Pal  
+> **Project:** Hevo Data Assessment I  
+> **Technologies:** PostgreSQL (Neon), Hevo Data, Snowflake, Python, SQL  
+
+---
+
+📘 *This repository demonstrates an end-to-end ELT workflow leveraging cloud-native data engineering tools for modern analytics pipelines.*
