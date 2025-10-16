@@ -3,6 +3,9 @@
 This project demonstrates the setup of a **complete data pipeline** using **PostgreSQL (Neon)**, **Hevo Data**, and **Snowflake**.  
 It covers every step from environment setup, data ingestion, transformation (via Python), and validation in the destination warehouse.
 
+***NOTE - Please refer to the word document attached which have step by step detail process and the relevant screenshots*****
+
+
 ---
 
 ## 📖 Overview
